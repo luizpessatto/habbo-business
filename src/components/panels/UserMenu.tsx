@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 import { LogOut, Settings, Coins, Link2, Unlink, CheckCircle2, Loader2 } from 'lucide-react';
 import { getOpenAIOAuthStatus, disconnectOpenAIOAuth } from '@/app/(game)/actions/oauth';
 import type { OAuthStatus } from '@/app/(game)/actions/oauth';
@@ -19,24 +18,22 @@ export default function UserMenu({ onOpenTokens }: UserMenuProps) {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // Check for OAuth callback results in URL
+  // Check for OAuth callback results in URL (without useSearchParams to avoid Suspense requirement)
   useEffect(() => {
-    const success = searchParams.get('oauth_success');
-    const error = searchParams.get('oauth_error');
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('oauth_success');
+    const error = params.get('oauth_error');
 
     if (success === 'openai') {
       setNotification({ type: 'success', message: 'OpenAI connected!' });
-      // Clean URL
       window.history.replaceState({}, '', '/');
-      // Refresh status
       loadOAuthStatus();
     } else if (error) {
       setNotification({ type: 'error', message: `OAuth error: ${error}` });
       window.history.replaceState({}, '', '/');
     }
-  }, [searchParams]);
+  }, []);
 
   // Auto-dismiss notification
   useEffect(() => {
