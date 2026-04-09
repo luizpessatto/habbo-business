@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add input label card table dialog toast select separator badge tabs sheet textarea avatar tooltip)",
+      "Bash(npx shadcn@latest add input label card table dialog sonner select separator badge tabs sheet textarea avatar tooltip)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__list_projects",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__get_cost",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__confirm_cost",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__create_project",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__get_project",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__get_publishable_keys",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__get_project_url",
+      "mcp__76278304-3761-41ef-86d2-29da668131c8__apply_migration"
+    ]
+  }
+}
