@@ -98,7 +98,8 @@ export async function sendMessageToAgent(
             .from('user_oauth_tokens')
             .select('id')
             .eq('user_id', u.id)
-            .eq('provider', 'openai-codex')
+            .in('provider', ['openai-codex', 'openai-apikey'])
+            .limit(1)
             .single();
           if (oauthToken) {
             effectiveProvider = 'openai-oauth';

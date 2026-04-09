@@ -34,8 +34,10 @@ export class OpenAIProvider implements LLMProvider {
 }
 
 /**
- * OpenAI OAuth provider — uses the user's ChatGPT subscription via Codex OAuth.
- * Tokens are stored per-user in Supabase `user_oauth_tokens`.
+ * OpenAI user-token provider — uses per-user credentials from Supabase.
+ * Supports both:
+ *   - 'openai-apikey': user's own API key (works everywhere)
+ *   - 'openai-codex': Codex OAuth token (localhost only, uses ChatGPT subscription)
  */
 export class OpenAIOAuthProvider implements LLMProvider {
   async sendMessage(messages: LLMMessage[], model: string): Promise<LLMResponse> {
@@ -45,38 +47,53 @@ export class OpenAIOAuthProvider implements LLMProvider {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      throw new Error('Not authenticated — cannot use OpenAI OAuth');
+      throw new Error('Not authenticated — cannot use OpenAI');
     }
 
-    // Get stored tokens
+    // Get stored tokens (API key or OAuth)
     const { data: tokenRow } = await supabase
       .from('user_oauth_tokens')
       .select('*')
       .eq('user_id', user.id)
-      .eq('provider', 'openai-codex')
+      .in('provider', ['openai-apikey', 'openai-codex'])
+      .limit(1)
       .single();
 
     if (!tokenRow) {
       throw new Error(
-        'OpenAI not connected. Go to Settings → Connect OpenAI Account.'
+        'OpenAI not connected. Go to Settings → connect your API key.'
       );
     }
 
+    // API key flow — use standard OpenAI SDK
+    if (tokenRow.provider === 'openai-apikey') {
+      const client = new OpenAI({ apiKey: tokenRow.access_token });
+      const response = await client.chat.completions.create({
+        model,
+        max_tokens: 500,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      });
+
+      return {
+        content: response.choices[0]?.message?.content ?? '',
+        promptTokens: response.usage?.prompt_tokens ?? 0,
+        completionTokens: response.usage?.completion_tokens ?? 0,
+      };
+    }
+
+    // OAuth flow — use Codex endpoint (localhost only)
     let accessToken = tokenRow.access_token;
     const expiresAt = new Date(tokenRow.expires_at);
 
-    // Refresh if expired or about to expire (5 min buffer)
     if (expiresAt.getTime() < Date.now() + 5 * 60 * 1000) {
       if (!tokenRow.refresh_token) {
         throw new Error(
-          'OpenAI token expired and no refresh token available. Please reconnect your account.'
+          'OpenAI token expired. Please reconnect your account.'
         );
       }
 
       try {
         const refreshed = await refreshAccessToken(tokenRow.refresh_token);
-
-        // Update tokens in DB
         await supabase
           .from('user_oauth_tokens')
           .update({
@@ -90,14 +107,12 @@ export class OpenAIOAuthProvider implements LLMProvider {
         accessToken = refreshed.accessToken;
       } catch (err) {
         throw new Error(
-          `Failed to refresh OpenAI token: ${err instanceof Error ? err.message : 'unknown error'}. Please reconnect your account.`
+          `Failed to refresh OpenAI token: ${err instanceof Error ? err.message : 'unknown error'}. Please reconnect.`
         );
       }
     }
 
-    // Call Codex API with OAuth token
     const response = await sendCodexCompletion(accessToken, messages, model);
-
     return {
       content: response.content,
       promptTokens: response.promptTokens,
